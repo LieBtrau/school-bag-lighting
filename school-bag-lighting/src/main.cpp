@@ -79,6 +79,8 @@ void theaterChaseRainbow(int wait)
 	}
 }
 
+/* Show text in two colors and fade it
+ */
 void showText(int wait)
 {
 	matrix.clear();
@@ -96,6 +98,9 @@ void showText(int wait)
 	}
 }
 
+/* Randomly show a random alien scrolling over the screen.
+ * Each alien has its own color.
+ */
 void showPacman()
 {
 	static int curpos = 0;
@@ -143,15 +148,19 @@ void showPacman()
 	}
 }
 
+/* Convert 32 bit WRGB gamma to 5,6,5 RGB-value
+ */
 word hsvColor(word hue)
 {
 	uint32_t wrgb = matrix.gamma32(matrix.ColorHSV(hue));
-	uint32_t r = (wrgb >> 19) & 0x1F;
-	uint32_t g = (wrgb >> 10) & 0x3F;
-	uint32_t b = (wrgb >> 3) & 0x1F;
-	return (r << 11) + (g << 5) + b;
+	uint32_t r = (wrgb >> 19) & 0x1F;//take 2nd octet and keep 5 highest bits
+	uint32_t g = (wrgb >> 10) & 0x3F;//take 3rd octet and keep 6 highest bits
+	uint32_t b = (wrgb >> 3) & 0x1F;//takes 4th octet and keep 5 highest bits
+	return (r << 11) + (g << 5) + b;//generate a 16bit color from the RGB 5,6,5-bits.
 }
 
+/* Draw three aliens next to each other.  Change their colors as rainbow values.
+ */
 void rainbowPacman(int wait)
 {
 	for (long firstPixelHue = 0; firstPixelHue < 65536; firstPixelHue += 256)
