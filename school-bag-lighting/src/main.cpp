@@ -10,140 +10,169 @@
 //   a LOGIC-LEVEL CONVERTER on the data line is STRONGLY RECOMMENDED.
 // (Skipping these may work OK on your workbench but can fail in the field)
 
+#include "SPI.h"
+#include <Adafruit_GFX.h>
+#include <Adafruit_I2CDevice.h>
+#include <Adafruit_NeoMatrix.h>
 #include <Adafruit_NeoPixel.h>
-#ifdef __AVR__
- #include <avr/power.h> // Required for 16 MHz Adafruit Trinket
-#endif
+#include "Fonts/Picopixel.h"
+
+//https://github.com/adafruit/Adafruit_Learning_System_Guides/blob/main/Trinket_Gemma_Space_Invader_Pendant/Trinket_Gemma_Space_Invader_Pendant.ino
+const uint8_t PROGMEM alien1[][8] = {
+	{// Frames 3 & 4 for alien #1 are duplicates of frames 1 & 2.
+	 // Rather than list them 'the tall way' again, the lines are merged here...
+	 B00011000, B00111100, B01111110, B11011011, B11111111, B00100100, B01011010, B10100101},
+	{B00011000, B00111100, B01111110, B11011011, B11111111, B00100100, B01011010, B01000010}};
+const uint8_t PROGMEM alien2[][8] = {
+	{// Frames 3 & 4 for alien #2 are duplicates of frames 1 & 2
+	 B00000000, B00111100, B01111110, B11011011, B11011011, B01111110, B00100100, B11000011},
+	{B00111100, B01111110, B11011011, B11011011, B01111110, B00100100, B00100100, B00100100}};
+const uint8_t PROGMEM alien3[][8] = {
+	{// Frames are duplicated as with prior aliens
+	 B00100100, B00100100, B01111110, B11011011, B11111111, B11111111, B10100101, B00100100},
+	{B00100100, B10100101, B11111111, B11011011, B11111111, B01111110, B00100100, B01000010}};
+const uint8_t PROGMEM alien4[][8] = {
+	{// Frames 5-8 are duplicates of 1-4, lines merged for brevity
+	 B00111100, B01111110, B00110011, B01111110, B00111100, B00000000, B00001000, B00000000},
+	{B00111100, B01111110, B10011001, B01111110, B00111100, B00000000, B00001000, B00001000},
+	{B00111100, B01111110, B11001100, B01111110, B00111100, B00000000, B00000000, B00001000},
+	{B00111100, B01111110, B01100110, B01111110, B00111100, B00000000, B00000000, B00000000}};
 
 // Which pin on the Arduino is connected to the NeoPixels?
 // On a Trinket or Gemma we suggest changing this to 1:
-#define LED_PIN    PA8
+#define LED_PIN PA8
 
-// How many NeoPixels are attached to the Arduino?
-#define LED_COUNT 60
-
-// Declare our NeoPixel strip object:
-Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
-// Argument 1 = Number of pixels in NeoPixel strip
-// Argument 2 = Arduino pin number (most are valid)
-// Argument 3 = Pixel type flags, add together as needed:
-//   NEO_KHZ800  800 KHz bitstream (most NeoPixel products w/WS2812 LEDs)
-//   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
-//   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
-//   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
-//   NEO_RGBW    Pixels are wired for RGBW bitstream (NeoPixel RGBW products)
-
+Adafruit_NeoMatrix matrix = Adafruit_NeoMatrix(32, 8, LED_PIN, NEO_MATRIX_TOP + NEO_MATRIX_LEFT + NEO_MATRIX_COLUMNS + NEO_MATRIX_ZIGZAG, NEO_GRB + NEO_KHZ800);
 
 // setup() function -- runs once at startup --------------------------------
-
-void setup() {
-  // These lines are specifically to support the Adafruit Trinket 5V 16 MHz.
-  // Any other board, you can remove this part (but no harm leaving it):
-#if defined(__AVR_ATtiny85__) && (F_CPU == 16000000)
-  clock_prescale_set(clock_div_1);
-#endif
-  // END of Trinket-specific code.
-
-  strip.begin();           // INITIALIZE NeoPixel strip object (REQUIRED)
-  strip.show();            // Turn OFF all pixels ASAP
-  strip.setBrightness(50); // Set BRIGHTNESS to about 1/5 (max = 255)
-}
-
-
-// loop() function -- runs repeatedly as long as board is on ---------------
-
-
-
-// Some functions of our own for creating animated effects -----------------
-
-// Fill strip pixels one after another with a color. Strip is NOT cleared
-// first; anything there will be covered pixel by pixel. Pass in color
-// (as a single 'packed' 32-bit value, which you can get by calling
-// strip.Color(red, green, blue) as shown in the loop() function above),
-// and a delay time (in milliseconds) between pixels.
-void colorWipe(uint32_t color, int wait) {
-  for(int i=0; i<strip.numPixels(); i++) { // For each pixel in strip...
-    strip.setPixelColor(i, color);         //  Set pixel's color (in RAM)
-    strip.show();                          //  Update strip to match
-    delay(wait);                           //  Pause for a moment
-  }
-}
-
-// Theater-marquee-style chasing lights. Pass in a color (32-bit value,
-// a la strip.Color(r,g,b) as mentioned above), and a delay time (in ms)
-// between frames.
-void theaterChase(uint32_t color, int wait) {
-  for(int a=0; a<10; a++) {  // Repeat 10 times...
-    for(int b=0; b<3; b++) { //  'b' counts from 0 to 2...
-      strip.clear();         //   Set all pixels in RAM to 0 (off)
-      // 'c' counts up from 'b' to end of strip in steps of 3...
-      for(int c=b; c<strip.numPixels(); c += 3) {
-        strip.setPixelColor(c, color); // Set pixel 'c' to value 'color'
-      }
-      strip.show(); // Update strip with new contents
-      delay(wait);  // Pause for a moment
-    }
-  }
-}
-
-// Rainbow cycle along whole strip. Pass delay time (in ms) between frames.
-void rainbow(int wait) {
-  // Hue of first pixel runs 5 complete loops through the color wheel.
-  // Color wheel has a range of 65536 but it's OK if we roll over, so
-  // just count from 0 to 5*65536. Adding 256 to firstPixelHue each time
-  // means we'll make 5*65536/256 = 1280 passes through this outer loop:
-  for(long firstPixelHue = 0; firstPixelHue < 5*65536; firstPixelHue += 256) {
-    for(int i=0; i<strip.numPixels(); i++) { // For each pixel in strip...
-      // Offset pixel hue by an amount to make one full revolution of the
-      // color wheel (range of 65536) along the length of the strip
-      // (strip.numPixels() steps):
-      int pixelHue = firstPixelHue + (i * 65536L / strip.numPixels());
-      // strip.ColorHSV() can take 1 or 3 arguments: a hue (0 to 65535) or
-      // optionally add saturation and value (brightness) (each 0 to 255).
-      // Here we're using just the single-argument hue variant. The result
-      // is passed through strip.gamma32() to provide 'truer' colors
-      // before assigning to each pixel:
-      strip.setPixelColor(i, strip.gamma32(strip.ColorHSV(pixelHue)));
-    }
-    strip.show(); // Update strip with new contents
-    delay(wait);  // Pause for a moment
-  }
+void setup()
+{
+	matrix.begin();			  // INITIALIZE NeoPixel strip object (REQUIRED)
+	matrix.show();			  // Turn OFF all pixels ASAP
+	matrix.setBrightness(50); // Set BRIGHTNESS to about 1/5 (max = 255)
+	randomSeed(analogRead(0));
 }
 
 // Rainbow-enhanced theater marquee. Pass delay time (in ms) between frames.
-void theaterChaseRainbow(int wait) {
-  int firstPixelHue = 0;     // First pixel starts at red (hue 0)
-  for(int a=0; a<30; a++) {  // Repeat 30 times...
-    for(int b=0; b<3; b++) { //  'b' counts from 0 to 2...
-      strip.clear();         //   Set all pixels in RAM to 0 (off)
-      // 'c' counts up from 'b' to end of strip in increments of 3...
-      for(int c=b; c<strip.numPixels(); c += 3) {
-        // hue of pixel 'c' is offset by an amount to make one full
-        // revolution of the color wheel (range 65536) along the length
-        // of the strip (strip.numPixels() steps):
-        int      hue   = firstPixelHue + c * 65536L / strip.numPixels();
-        uint32_t color = strip.gamma32(strip.ColorHSV(hue)); // hue -> RGB
-        strip.setPixelColor(c, color); // Set pixel 'c' to value 'color'
-      }
-      strip.show();                // Update strip with new contents
-      delay(wait);                 // Pause for a moment
-      firstPixelHue += 65536 / 90; // One cycle of color wheel over 90 frames
-    }
-  }
+void theaterChaseRainbow(int wait)
+{
+	int firstPixelHue = 0; // First pixel starts at red (hue 0)
+	for (int a = 0; a < 10; a++)
+	{ // Repeat 10 times...
+		for (int b = 0; b < 3; b++)
+		{					//  'b' counts from 0 to 2...
+			matrix.clear(); //   Set all pixels in RAM to 0 (off)
+			// 'c' counts up from 'b' to end of strip in increments of 3...
+			for (int c = b; c < matrix.numPixels(); c += 3)
+			{
+				// hue of pixel 'c' is offset by an amount to make one full
+				// revolution of the color wheel (range 65536) along the length
+				// of the strip (strip.numPixels() steps):
+				int hue = firstPixelHue + c * 65536L / matrix.numPixels();
+				uint32_t color = matrix.gamma32(matrix.ColorHSV(hue)); // hue -> RGB
+				matrix.setPixelColor(c, color);						   // Set pixel 'c' to value 'color'
+			}
+			matrix.show();				 // Update strip with new contents
+			delay(wait);				 // Pause for a moment
+			firstPixelHue += 65536 / 90; // One cycle of color wheel over 90 frames
+		}
+	}
 }
 
-void loop() {
-  // Fill along the length of the strip in various colors...
-  colorWipe(strip.Color(255,   0,   0), 50); // Red
-  colorWipe(strip.Color(  0, 255,   0), 50); // Green
-  colorWipe(strip.Color(  0,   0, 255), 50); // Blue
-
-  // Do a theater marquee effect in various colors...
-  theaterChase(strip.Color(127, 127, 127), 50); // White, half brightness
-  theaterChase(strip.Color(127,   0,   0), 50); // Red, half brightness
-  theaterChase(strip.Color(  0,   0, 127), 50); // Blue, half brightness
-
-  rainbow(10);             // Flowing rainbow cycle along the whole strip
-  theaterChaseRainbow(50); // Rainbow-enhanced theaterChase variant
+void showText(int wait)
+{
+	matrix.clear();
+	matrix.setFont(&Picopixel);
+	for (int j = 0; j < 4; j++)
+	{
+		for (int i = 255; i > 0; i -= 5)
+		{
+			matrix.setCursor(6, 5);
+			matrix.setTextColor(j & 1 ? matrix.Color(i, i, i) : matrix.Color(i, i, 0));
+			matrix.print("LET OP");
+			matrix.show();
+			delay(10);
+		}
+	}
 }
 
+void showPacman()
+{
+	static int curpos = 0;
+	static byte state = 0;
+	int shift = random(32);
+	int direction = random(1000) < 500 ? -1 : 1;
+	int alientype = random(1000) % 4;
+	const byte(*bitmap)[8];
+	int spriteCount = 0;
+	word color = 0;
+	switch (alientype)
+	{
+	case 0:
+		bitmap = alien1;
+		spriteCount = 2;
+		color = matrix.Color(127, 0, 0);
+		break;
+	case 1:
+		bitmap = alien2;
+		spriteCount = 2;
+		color = matrix.Color(127, 127, 0);
+		break;
+	case 2:
+		bitmap = alien3;
+		spriteCount = 2;
+		color = matrix.Color(127, 127, 127);
+		break;
+	case 3:
+		bitmap = alien4;
+		spriteCount = 4;
+		color = matrix.Color(0, 127, 0);
+		break;
+	default:
+		break;
+	}
+	for (int i = 0; i < shift; i++)
+	{
+		state = (state == 2 ? 0 : state + 1);
+		matrix.clear();
+		curpos += direction;
+		curpos = curpos % 32;
+		matrix.drawBitmap(curpos, 0, bitmap[state], 8, 8, color);
+		matrix.show();
+		delay(75);
+	}
+}
+
+word hsvColor(word hue)
+{
+	uint32_t wrgb = matrix.gamma32(matrix.ColorHSV(hue));
+	uint32_t r = (wrgb >> 19) & 0x1F;
+	uint32_t g = (wrgb >> 10) & 0x3F;
+	uint32_t b = (wrgb >> 3) & 0x1F;
+	return (r << 11) + (g << 5) + b;
+}
+
+void rainbowPacman(int wait)
+{
+	for (long firstPixelHue = 0; firstPixelHue < 65536; firstPixelHue += 256)
+	{
+		matrix.clear();
+		int subsprite = (firstPixelHue >> 11) & 1;
+		matrix.drawBitmap(2, 0, alien1[subsprite], 8, 8, hsvColor(firstPixelHue));
+		matrix.drawBitmap(12, 0, alien2[subsprite], 8, 8, hsvColor(firstPixelHue + 20000));
+		matrix.drawBitmap(22, 0, alien3[subsprite], 8, 8, hsvColor(firstPixelHue + 40000));
+		matrix.show(); // Update strip with new contents
+		delay(wait);   // Pause for a moment
+	}
+}
+
+void loop()
+{
+	theaterChaseRainbow(50); // Rainbow-enhanced theaterChase variant
+	showText(50);
+	for (int i = 0; i < 10; i++)
+	{
+		showPacman();
+	}
+	rainbowPacman(50);
+}
